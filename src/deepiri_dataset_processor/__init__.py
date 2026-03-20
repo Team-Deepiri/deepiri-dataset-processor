@@ -13,6 +13,8 @@ Optional modules (require extras):
     - quality.checker: pip install deepiri-dataset-processor[quality]
 """
 
+__version__ = "0.1.0"
+
 from deepiri_dataset_processor.cleaning.text_cleaner import (
     TextCleaner,
     clean_text_document,
