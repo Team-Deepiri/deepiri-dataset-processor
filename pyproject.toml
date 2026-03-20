@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deepiri-dataset-processor"
+version = "0.1.0"
+description = "Reusable data preprocessing: clean, dedup, safety-check, version"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+semantic = [
+    "numpy>=1.24.0",
+    "sentence-transformers>=2.2.0",
+]
+versioning = [
+    "sqlalchemy>=2.0.0",
+    "pydantic>=2.0.0",
+]
+quality = [
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+]
+all = [
+    "deepiri-dataset-processor[semantic,versioning,quality]",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "mypy>=1.0.0",
+    "ruff>=0.1.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
