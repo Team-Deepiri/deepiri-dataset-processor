@@ -1,5 +1,19 @@
 """Data quality checking framework."""
 
-from .checker import QualityConfig, QualityMetric, QualityReport
+from .checker import (
+    QualityCheckStage,
+    QualityChecker,
+    QualityConfig,
+    QualityMetric,
+    QualityReport,
+    check_data_quality,
+)
 
-__all__ = ["QualityConfig", "QualityMetric", "QualityReport"]
+__all__ = [
+    "QualityCheckStage",
+    "QualityChecker",
+    "QualityConfig",
+    "QualityMetric",
+    "QualityReport",
+    "check_data_quality",
+]
