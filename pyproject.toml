@@ -9,7 +9,9 @@ description = "Reusable data preprocessing: clean, dedup, safety-check, version"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "networkx>=3.0",
+]
 
 [project.optional-dependencies]
 semantic = [
