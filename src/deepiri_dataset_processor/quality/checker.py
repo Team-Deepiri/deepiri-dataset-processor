@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
+from ..pipeline.base import PreprocessingStage, ProcessedData, StageResult, ValidationResult
+
 try:
     import numpy as np
 
@@ -114,6 +116,51 @@ class QualityReport:
             "summary": self.summary,
             "recommendations": self.recommendations,
         }
+
+    def to_validation_result(self) -> ValidationResult:
+        """Convert report to :class:`~deepiri_dataset_processor.pipeline.ValidationResult`."""
+        errors = [
+            f"{m.dimension}.{m.metric_name}: {m.value:.2f} < {m.threshold}"
+            for m in self.metrics
+            if not m.passed
+        ]
+        warnings = self.recommendations.copy()
+        quality_scores = dict(self.dimension_scores)
+        quality_scores["overall"] = self.overall_score
+        return ValidationResult(
+            is_valid=len(errors) == 0 and self.overall_score >= 0.8,
+            errors=errors,
+            warnings=warnings,
+            quality_scores=quality_scores,
+        )
+
+    def get_quality_metrics_for_processed_data(self) -> Dict[str, float]:
+        """Dimension scores suitable for :class:`~deepiri_dataset_processor.pipeline.ProcessedData`."""
+        return dict(self.dimension_scores)
+
+
+_QUALITY_CONFIG_KEYS = frozenset(
+    {
+        "completeness_threshold",
+        "consistency_threshold",
+        "validity_threshold",
+        "uniqueness_threshold",
+        "timeliness_threshold",
+        "accuracy_threshold",
+        "integrity_threshold",
+        "iqr_multiplier",
+        "zscore_threshold",
+        "isolation_forest_contamination",
+        "random_state",
+        "freshness_decay_days",
+        "key_uniqueness_threshold",
+        "recommendation_threshold",
+        "validity_error_penalty",
+        "shapiro_wilk_sample_size",
+        "min_samples_for_outlier_detection",
+        "min_samples_for_statistical_tests",
+    }
+)
 
 
 def _check_dependencies():
@@ -423,3 +470,89 @@ class QualityChecker:
             )
 
         return recommendations
+
+
+def check_data_quality(
+    data: Union["pd.DataFrame", List[Dict], Dict],
+    dataset_id: str = "dataset",
+    schema: Optional[Dict[str, Any]] = None,
+    config: Optional[QualityConfig] = None,
+) -> QualityReport:
+    """Run :class:`QualityChecker` and return a :class:`QualityReport`."""
+    checker = QualityChecker(config=config)
+    return checker.check_quality(data, dataset_id, schema)
+
+
+class QualityCheckStage(PreprocessingStage):
+    """
+    Pipeline stage wrapping :class:`QualityChecker` (Helox-compatible).
+
+    Depends on no other stages by default; insert where needed in the DAG or list.
+    """
+
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        raw = config or {}
+        super().__init__(name="quality_check", config=raw)
+
+        quality_config = raw.get("quality_config")
+        if quality_config is None:
+            quality_kwargs = {k: v for k, v in raw.items() if k in _QUALITY_CONFIG_KEYS}
+            if quality_kwargs:
+                quality_config = QualityConfig(**quality_kwargs)
+
+        self.quality_checker = QualityChecker(config=quality_config)
+        self.dataset_id = raw.get("dataset_id", "quality_check")
+        self.schema = raw.get("schema")
+
+    def get_dependencies(self) -> List[str]:
+        return []
+
+    def process(self, data: Any) -> StageResult:
+        try:
+            actual_data, original_metadata = self._extract_data_and_metadata(data)
+            quality_report = self.quality_checker.check_quality(
+                data=actual_data,
+                dataset_id=self.dataset_id,
+                schema=self.schema or original_metadata.get("schema"),
+            )
+            validation_result = quality_report.to_validation_result()
+            processed_data = ProcessedData(
+                data=actual_data,
+                metadata={
+                    **original_metadata,
+                    "quality_check_timestamp": quality_report.timestamp.isoformat(),
+                    "overall_quality_score": quality_report.overall_score,
+                    "schema": self.schema or original_metadata.get("schema"),
+                },
+                quality_metrics=quality_report.get_quality_metrics_for_processed_data(),
+                schema_version=original_metadata.get("schema_version"),
+            )
+            return StageResult(
+                success=True,
+                processed_data=processed_data,
+                validation_result=validation_result,
+                stage_name=self.name,
+            )
+        except Exception as e:
+            return StageResult(
+                success=False,
+                error=f"Quality check failed: {str(e)}",
+                stage_name=self.name,
+            )
+
+    def validate(self, data: Any) -> ValidationResult:
+        try:
+            actual_data = self._extract_data(data)
+            quality_report = self.quality_checker.check_quality(
+                data=actual_data,
+                dataset_id=self.dataset_id,
+                schema=self.schema,
+            )
+            return quality_report.to_validation_result()
+        except Exception as e:
+            return ValidationResult(
+                is_valid=False,
+                errors=[f"Quality check failed: {str(e)}"],
+                warnings=[],
+                quality_scores={},
+            )
