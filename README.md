@@ -1,6 +1,6 @@
 # deepiri-dataset-processor
 
-Reusable data preprocessing library for ML/AI projects: clean, dedup, safety-check, version.
+Reusable data preprocessing library cleaning, deduping, quality checking, and versioning datasets.
 
 ## Installation
 
