@@ -55,6 +55,81 @@ detector = DataLeakageDetector(ngram_size=5)
 report = detector.detect_train_eval_contamination(train_texts, eval_texts)
 ```
 
+## CodeQL
+
+This repository includes a basic GitHub CodeQL setup for Python.
+
+### Branch and Trigger Scope
+
+The CodeQL workflow runs on:
+
+- Pushes to `main` and `dev`
+- Pull requests targeting `main` and `dev`
+
+### Files Added
+
+- `.github/workflows/codeql.yml`
+- `.github/codeql/codeql-config.yml`
+
+### Workflow Configuration
+
+```yaml
+name: CodeQL
+
+on:
+	pull_request:
+		branches: [main, dev]
+	push:
+		branches: [main, dev]
+
+permissions:
+	actions: read
+	contents: read
+	security-events: write
+
+jobs:
+	analyze:
+		name: Analyze (python)
+		runs-on: ubuntu-latest
+
+		steps:
+			- name: Checkout repository
+				uses: actions/checkout@v4
+				with:
+					fetch-depth: 0
+
+			- name: Initialize CodeQL
+				uses: github/codeql-action/init@v3
+				with:
+					languages: python
+					config-file: ./.github/codeql/codeql-config.yml
+
+			- name: Perform CodeQL Analysis
+				uses: github/codeql-action/analyze@v3
+```
+
+### CodeQL Config
+
+```yaml
+# Exclude generated/build/runtime artifact paths.
+paths-ignore:
+	- "**/node_modules/**"
+	- "**/dist/**"
+	- "**/build/**"
+	- "**/coverage/**"
+	- "**/logs/**"
+	- "**/*.min.js"
+	- "**/.venv/**"
+	- "**/__pycache__/**"
+	- "**/.pytest_cache/**"
+	- "**/.mypy_cache/**"
+```
+
+### Notes
+
+- The language is set to `python` to match this repository.
+- The workflow references the repository config file at `./.github/codeql/codeql-config.yml`.
+
 ## License
 
 MIT
