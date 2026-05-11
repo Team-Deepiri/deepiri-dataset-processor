@@ -55,6 +55,12 @@ detector = DataLeakageDetector(ngram_size=5)
 report = detector.detect_train_eval_contamination(train_texts, eval_texts)
 ```
 
+## CodeQL
+
+CodeQL documentation for this repository is available in:
+
+- `.github/codeql/README.md`
+
 ## License
 
 MIT
