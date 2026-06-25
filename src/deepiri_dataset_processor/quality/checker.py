@@ -184,6 +184,10 @@ class QualityChecker:
         metrics.extend(self._check_consistency(df))
         metrics.extend(self._check_validity(df, schema))
         metrics.extend(self._check_uniqueness(df))
+        metrics.extend(self._check_timeliness(df))
+        metrics.extend(self._check_accuracy(df))
+        metrics.extend(self._check_integrity(df))
+        metrics.extend(self._check_distribution(df))
 
         dimension_scores = self._calculate_dimension_scores(metrics)
         overall_score = float(
@@ -388,6 +392,170 @@ class QualityChecker:
 
         return metrics
 
+    def _check_timeliness(self, df: "pd.DataFrame") -> List[QualityMetric]:
+        metrics = []
+        if df.empty:
+            return metrics
+        timestamp_cols = [
+            c for c in df.columns if "time" in c.lower() or "date" in c.lower()
+        ]
+        if not timestamp_cols:
+            metrics.append(
+                QualityMetric(
+                    dimension="timeliness",
+                    metric_name="freshness_proxy",
+                    value=1.0,
+                    threshold=self.config.timeliness_threshold,
+                    passed=True,
+                    details={"message": "No timestamp columns; assumed fresh"},
+                )
+            )
+            return metrics
+        col = timestamp_cols[0]
+        try:
+            dates = pd.to_datetime(df[col], errors="coerce")
+            valid = dates.dropna()
+            age_days = None
+            if len(valid) == 0:
+                score = 0.0
+            else:
+                age_days = (pd.Timestamp.now() - valid.max()).days
+                score = max(
+                    0.0,
+                    1.0 - (age_days / max(self.config.freshness_decay_days, 1)),
+                )
+            metrics.append(
+                QualityMetric(
+                    dimension="timeliness",
+                    metric_name="data_freshness",
+                    value=float(score),
+                    threshold=self.config.timeliness_threshold,
+                    passed=float(score) >= self.config.timeliness_threshold,
+                    details={"column": col, "age_days": age_days},
+                )
+            )
+        except Exception as exc:
+            metrics.append(
+                QualityMetric(
+                    dimension="timeliness",
+                    metric_name="parse_error",
+                    value=0.0,
+                    threshold=self.config.timeliness_threshold,
+                    passed=False,
+                    details={"error": str(exc)},
+                )
+            )
+        return metrics
+
+    def _check_accuracy(self, df: "pd.DataFrame") -> List[QualityMetric]:
+        metrics = []
+        if df.empty or len(df) < self.config.min_samples_for_outlier_detection:
+            return metrics
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        if len(numeric_cols) == 0:
+            metrics.append(
+                QualityMetric(
+                    dimension="accuracy",
+                    metric_name="numeric_outliers",
+                    value=1.0,
+                    threshold=self.config.accuracy_threshold,
+                    passed=True,
+                    details={"message": "No numeric columns for outlier detection"},
+                )
+            )
+            return metrics
+        outlier_rates = []
+        for col in numeric_cols:
+            series = df[col].dropna()
+            if len(series) < 4:
+                continue
+            q1, q3 = series.quantile(0.25), series.quantile(0.75)
+            iqr = q3 - q1
+            lower = q1 - self.config.iqr_multiplier * iqr
+            upper = q3 + self.config.iqr_multiplier * iqr
+            outliers = ((series < lower) | (series > upper)).sum()
+            outlier_rates.append(outliers / len(series))
+        avg_rate = float(np.mean(outlier_rates)) if outlier_rates else 0.0
+        score = max(0.0, 1.0 - avg_rate)
+        metrics.append(
+            QualityMetric(
+                dimension="accuracy",
+                metric_name="numeric_outlier_rate",
+                value=score,
+                threshold=self.config.accuracy_threshold,
+                passed=score >= self.config.accuracy_threshold,
+                details={"avg_outlier_rate": avg_rate},
+            )
+        )
+        return metrics
+
+    def _check_integrity(self, df: "pd.DataFrame") -> List[QualityMetric]:
+        metrics = []
+        if df.empty:
+            return metrics
+        id_cols = [c for c in df.columns if c in ("id", "document_id", "uuid")]
+        if id_cols:
+            col = id_cols[0]
+            null_ids = int(df[col].isnull().sum())
+            score = 1.0 - (null_ids / len(df))
+            metrics.append(
+                QualityMetric(
+                    dimension="integrity",
+                    metric_name="id_completeness",
+                    value=float(score),
+                    threshold=self.config.integrity_threshold,
+                    passed=float(score) >= self.config.integrity_threshold,
+                    details={"column": col, "null_ids": null_ids},
+                )
+            )
+        else:
+            metrics.append(
+                QualityMetric(
+                    dimension="integrity",
+                    metric_name="referential_proxy",
+                    value=1.0,
+                    threshold=self.config.integrity_threshold,
+                    passed=True,
+                    details={"message": "No id column; integrity assumed"},
+                )
+            )
+        return metrics
+
+    def _check_distribution(self, df: "pd.DataFrame") -> List[QualityMetric]:
+        """Label balance and text length distribution."""
+        metrics = []
+        if df.empty:
+            return metrics
+        if "label" in df.columns:
+            counts = df["label"].value_counts(normalize=True)
+            balance = float(counts.min() / counts.max()) if counts.max() > 0 else 1.0
+            metrics.append(
+                QualityMetric(
+                    dimension="consistency",
+                    metric_name="label_balance",
+                    value=balance,
+                    threshold=0.1,
+                    passed=balance >= 0.1,
+                    details={"label_counts": counts.to_dict()},
+                )
+            )
+        if "text" in df.columns:
+            lengths = df["text"].astype(str).str.len()
+            metrics.append(
+                QualityMetric(
+                    dimension="summary",
+                    metric_name="text_length_mean",
+                    value=1.0,
+                    passed=True,
+                    details={
+                        "min": int(lengths.min()),
+                        "max": int(lengths.max()),
+                        "mean": float(lengths.mean()),
+                    },
+                )
+            )
+        return metrics
+
     def _calculate_dimension_scores(
         self, metrics: List[QualityMetric]
     ) -> Dict[str, float]:
@@ -395,6 +563,8 @@ class QualityChecker:
 
         dimension_values: Dict[str, List[float]] = defaultdict(list)
         for m in metrics:
+            if m.dimension in ("summary",):
+                continue
             dimension_values[m.dimension].append(m.value)
 
         return {

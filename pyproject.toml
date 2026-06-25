@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "deepiri-dataset-processor"
-version = "0.2.0"
-description = "Reusable data preprocessing: clean, dedup, safety-check, version, and manifest generation."
+version = "0.3.0"
+description = "Production dataset preprocessing: clean, dedup, safety-check, quality, version, and manifest generation."
 authors = ["Team Deepiri"]
 readme = "README.md"
 license = "Apache-2.0"
@@ -9,21 +9,26 @@ packages = [{ include = "deepiri_dataset_processor", from = "src" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
-numpy = { version = "^1.24.0 || ^2.1.0", optional = true }
+numpy = "^1.24.0 || ^2.1.0"
+pandas = "^2.0.0"
+pyarrow = "^15.0.0"
+tqdm = "^4.66.0"
+sentence-transformers = "^3.0.0"
 sqlalchemy = { version = "^2.0.0", optional = true }
 pydantic = { version = "^2.0.0", optional = true }
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8,<10"
 ruff = "^0.8.0"
-numpy = "^1.24.0"
 sqlalchemy = "^2.0.0"
 pydantic = "^2.0.0"
 
 [tool.poetry.extras]
-semantic = ["numpy"]
+semantic = ["sentence-transformers", "numpy"]
 versioning = ["sqlalchemy", "pydantic"]
-all = ["numpy", "sqlalchemy", "pydantic"]
+streaming = ["pyarrow"]
+quality = ["pandas", "numpy"]
+all = ["sentence-transformers", "numpy", "pandas", "pyarrow", "sqlalchemy", "pydantic"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
