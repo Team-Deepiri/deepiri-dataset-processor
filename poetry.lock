@@ -2811,4 +2811,4 @@ versioning = ["pydantic", "sqlalchemy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "59ef4622e9c899084308e34a860d09cfb9a4dd590e2e66c67e95d3d8209cf26d"
+content-hash = "c37bfec514e108e1b4d831abcbd177e5b88d9e37ade0d269c495aa3775efa014"
