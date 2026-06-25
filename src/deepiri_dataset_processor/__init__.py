@@ -7,7 +7,7 @@ Core modules:
     - safety: Data leakage detection
     - quality: 7-dimension quality scoring
     - versioning: Filesystem and database versioning
-    - pipeline: Composable preprocessing stages and presets
+    - pipeline: Composable preprocessing stages, DAG orchestration, and presets
     - streaming: Chunked JSONL processing
     - manifest: DatasetManifest generation
 """
@@ -38,7 +38,10 @@ from deepiri_dataset_processor.pipeline.base import (
     StageResult,
     ValidationResult,
 )
-from deepiri_dataset_processor.pipeline.orchestrator import DatasetPipeline
+from deepiri_dataset_processor.pipeline.orchestrator import (
+    DatasetPipeline,
+    PipelineOrchestrator,
+)
 from deepiri_dataset_processor.pipeline.presets import (
     feedback_preset,
     production_preset,
@@ -46,13 +49,18 @@ from deepiri_dataset_processor.pipeline.presets import (
 )
 from deepiri_dataset_processor.pipeline.stages import (
     DataCleaningStage,
+    DataLoadingStage,
+    DataRoutingStage,
     DataTransformationStage,
     DataValidationStage,
+    LabelValidationStage,
 )
 from deepiri_dataset_processor.quality.checker import (
+    QualityCheckStage,
     QualityChecker,
     QualityConfig,
     QualityReport,
+    check_data_quality,
 )
 from deepiri_dataset_processor.safety.leakage_detector import DataLeakageDetector
 from deepiri_dataset_processor.streaming.chunked_jsonl import (
@@ -69,17 +77,23 @@ __all__ = [
     "ExactDeduplicator",
     "SemanticDeduplicationEngine",
     "build_manifest",
+    "QualityCheckStage",
     "QualityChecker",
     "QualityConfig",
     "QualityReport",
+    "check_data_quality",
     "DatasetVersioningSystem",
     "PreprocessingStage",
     "ProcessedData",
     "StageResult",
     "ValidationResult",
     "DatasetPipeline",
+    "PipelineOrchestrator",
     "DataCleaningStage",
+    "DataLoadingStage",
+    "DataRoutingStage",
     "DataValidationStage",
+    "LabelValidationStage",
     "DataTransformationStage",
     "TextCleaningStage",
     "ExactDedupStage",

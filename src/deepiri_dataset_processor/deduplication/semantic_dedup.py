@@ -3,6 +3,8 @@ Semantic deduplication engine.
 
 Uses embedding-based similarity filtering with sentence-transformers when
 available, plus optional LSH bucketing for scale.
+
+Requires: pip install deepiri-dataset-processor[semantic]
 """
 
 from __future__ import annotations
@@ -10,7 +12,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Set
 
 try:
     import numpy as np
@@ -48,7 +50,10 @@ class SemanticDeduplicationEngine:
         lsh_bands: int = 20,
     ):
         if not HAS_NUMPY:
-            raise ImportError("numpy is required for semantic deduplication")
+            raise ImportError(
+                "numpy is required for semantic deduplication. "
+                "Install with: pip install deepiri-dataset-processor[semantic]"
+            )
 
         self.similarity_threshold = similarity_threshold
         self.cache_dir = Path(cache_dir)
@@ -124,6 +129,8 @@ class SemanticDeduplicationEngine:
         if duplicates:
             total = sum(len(v) for v in duplicates.values())
             logger.info("Found %d duplicate groups, %d duplicates", len(duplicates), total)
+        else:
+            logger.info("No semantic duplicates found")
         return duplicates
 
     def filter_duplicates(self, texts: List[str]) -> List[str]:
