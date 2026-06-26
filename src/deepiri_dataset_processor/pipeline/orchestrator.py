@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 
 import networkx as nx
 
-from .base import PreprocessingStage, StageResult, ValidationResult
+from .base import PreprocessingStage, ProcessedData, StageResult, ValidationResult
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,7 @@ class DatasetPipeline:
             return StageResult(success=True, processed_data=None, stage_name=None)
 
         current_data = data
+        result: StageResult | None = None
 
         for stage in self.stages:
             start = time.perf_counter()
@@ -55,6 +56,14 @@ class DatasetPipeline:
                 stage.get_name(),
                 elapsed,
             )
+
+        if result is None:
+            processed = (
+                current_data
+                if isinstance(current_data, ProcessedData)
+                else ProcessedData(data=current_data)
+            )
+            return StageResult(success=True, processed_data=processed)
 
         return result
 
@@ -79,6 +88,42 @@ class DatasetPipeline:
     def get_stage_names(self) -> List[str]:
         """Get ordered list of stage names."""
         return [s.get_name() for s in self.stages]
+
+    def run_streaming(
+        self,
+        path: Any,
+        *,
+        chunk_size: int = 1000,
+        output_path: Optional[Any] = None,
+    ) -> StageResult:
+        """Process a JSONL file in chunks without loading the full corpus."""
+        from pathlib import Path
+
+        from ..streaming.chunked_jsonl import iter_jsonl_chunks, write_jsonl_records
+
+        source = Path(path)
+        all_records: List[Dict[str, Any]] = []
+        last_result: StageResult | None = None
+
+        for chunk in iter_jsonl_chunks(source, chunk_size=chunk_size):
+            result = self.run(chunk)
+            last_result = result
+            if not result.success:
+                return result
+            chunk_data = result.processed_data
+            if hasattr(chunk_data, "data"):
+                all_records.extend(chunk_data.data)
+            elif isinstance(chunk_data, list):
+                all_records.extend(chunk_data)
+
+        if output_path:
+            write_jsonl_records(output_path, all_records)
+
+        processed = ProcessedData(data=all_records, metadata={})
+        if last_result and last_result.processed_data:
+            processed.metadata = getattr(last_result.processed_data, "metadata", {})
+
+        return StageResult(success=True, processed_data=processed)
 
 
 class PipelineOrchestrator:
