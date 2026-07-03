@@ -12,7 +12,7 @@ python = "^3.11"
 networkx = "^3.0"
 numpy = ">=1.24.0,<3.0"
 pandas = "^2.0.0"
-pyarrow = "^18.0.0"
+pyarrow = ">=18,<24"
 tqdm = "^4.66.0"
 sentence-transformers = "^3.0.0"
 sqlalchemy = { version = "^2.0.0", optional = true }
