@@ -1,7 +1,8 @@
 """
 Data Quality Framework.
 
-Provides comprehensive data quality checks across 7 dimensions:
+Evaluates data quality across 7 dimensions:
+
 1. Completeness - Missing values, coverage
 2. Consistency - Ranges, formats
 3. Validity - Schema, business rules
@@ -9,6 +10,12 @@ Provides comprehensive data quality checks across 7 dimensions:
 5. Timeliness - Freshness, staleness
 6. Accuracy - Statistical tests, outliers
 7. Integrity - Referential, constraints
+
+A dimension contributes to ``overall_score`` only when at least one of its
+checks produces a metric for the given dataset shape; reports declare which
+dimensions were evaluated and which had no applicable checks (see
+``QualityReport.summary["dimensions_evaluated"]`` /
+``summary["dimensions_not_evaluated"]``).
 
 Requires: pip install deepiri-dataset-processor[quality]
 """
@@ -32,6 +39,18 @@ try:
     HAS_PANDAS = True
 except ImportError:
     HAS_PANDAS = False
+
+
+#: All dimensions with implemented checks.
+IMPLEMENTED_DIMENSIONS: tuple = (
+    "completeness",
+    "consistency",
+    "validity",
+    "uniqueness",
+    "timeliness",
+    "accuracy",
+    "integrity",
+)
 
 
 @dataclass
@@ -180,7 +199,10 @@ class QualityChecker:
     """
     Main class for performing comprehensive data quality checks.
 
-    Implements all 7 quality dimensions and generates quality reports.
+    Implements all 7 quality dimensions and generates quality reports. A
+    dimension is included in ``dimension_scores`` / ``overall_score`` only when
+    its checks produce at least one metric; ``summary`` declares which
+    dimensions were evaluated and which had no applicable checks.
     """
 
     def __init__(self, config: Optional[QualityConfig] = None):
@@ -242,11 +264,22 @@ class QualityChecker:
         )
         recommendations = self._generate_recommendations(dimension_scores, metrics)
 
+        not_evaluated = [
+            dim for dim in IMPLEMENTED_DIMENSIONS if dim not in dimension_scores
+        ]
+        if not_evaluated:
+            recommendations.append(
+                "No applicable checks produced metrics for these dimensions "
+                "(excluded from overall_score): " + ", ".join(not_evaluated)
+            )
+
         summary = {
             "total_rows": len(df),
             "total_columns": len(df.columns),
             "total_metrics": len(metrics),
             "failed_metrics": sum(1 for m in metrics if not m.passed),
+            "dimensions_evaluated": sorted(dimension_scores.keys()),
+            "dimensions_not_evaluated": not_evaluated,
         }
 
         return QualityReport(

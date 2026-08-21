@@ -148,3 +148,30 @@ class TestDatasetType:
 
         assert DatasetType.LEASE_ABSTRACTION.value == "lease_abstraction"
         assert DatasetType.CONTRACT_INTELLIGENCE.value == "contract_intelligence"
+
+
+class TestStorageBackendDefaults:
+    def test_default_storage_backend_is_local(self):
+        from deepiri_dataset_processor.versioning.models import DatasetVersionMetadata
+
+        meta = DatasetVersionMetadata(
+            dataset_name="d",
+            version="1.0.0",
+            dataset_type="lease_abstraction",
+            storage_path="/tmp/x",
+            total_samples=1,
+            file_count=1,
+            total_size_bytes=10,
+            data_checksum="a" * 64,
+            metadata_checksum="b" * 64,
+        )
+        assert meta.storage_backend == "local"
+
+    def test_s3_backend_fails_fast_at_construction(self):
+        from deepiri_dataset_processor.versioning.database import DatasetVersionManager
+
+        with pytest.raises(NotImplementedError, match="s3"):
+            DatasetVersionManager(
+                db_url="sqlite:///:memory:",
+                storage_backend="s3",
+            )

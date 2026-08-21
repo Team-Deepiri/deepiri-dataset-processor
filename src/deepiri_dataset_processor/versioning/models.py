@@ -66,7 +66,7 @@ if HAS_SQLALCHEMY:
 
         # Storage information
         storage_path = Column(String(500), nullable=False)
-        storage_backend = Column(String(50), default="s3")
+        storage_backend = Column(String(50), default="local")
 
         # Data statistics
         total_samples = Column(Integer, nullable=False)
@@ -108,7 +108,7 @@ if HAS_PYDANTIC:
         version: str
         dataset_type: DatasetType
         storage_path: str
-        storage_backend: str = "s3"
+        storage_backend: str = "local"
 
         total_samples: int
         file_count: int

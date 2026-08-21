@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "deepiri-dataset-processor"
-version = "0.3.0"
+version = "0.3.2"
 description = "Production dataset preprocessing: clean, dedup, safety-check, quality, version, and manifest generation."
 authors = ["Team Deepiri"]
 readme = "README.md"
