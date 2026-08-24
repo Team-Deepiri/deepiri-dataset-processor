@@ -78,7 +78,11 @@ def visual_observation_to_training(
     """Map an Elkedel eyes identity trace to a visual grounding training row."""
     label = str(trace.get("label") or "object")
     identity = str(trace.get("trace_id") or trace.get("identity_id") or "unknown")
-    strength = float(trace.get("strength") or 0.5)
+    raw_strength = trace.get("strength", 0.5)
+    try:
+        strength = float(raw_strength) if raw_strength is not None else 0.5
+    except (TypeError, ValueError):
+        strength = 0.5
     ts = trace.get("last_seen_ms") or trace.get("first_seen_ms") or 0
     instruction = (
         f"Live scene {document_id}: identify {label} (identity {identity}) "
@@ -108,9 +112,9 @@ def batch_to_jsonl_records(records: Iterable[Dict[str, Any]]) -> List[Dict[str, 
     out: List[Dict[str, Any]] = []
     for rec in records:
         row = dict(rec)
-        if "text" not in row:
+        if not row.get("text"):
             parts = [row.get("instruction"), row.get("input"), row.get("output")]
-            row["text"] = "\n\n".join(p for p in parts if p)
+            row["text"] = "\n\n".join(str(p) for p in parts if p)
         row.setdefault("exported_at", datetime.now(timezone.utc).isoformat())
         out.append(row)
     return out

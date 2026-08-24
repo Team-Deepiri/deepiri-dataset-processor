@@ -69,11 +69,19 @@ def export_training_jsonl(
     *,
     preset: Optional[DatasetPipeline] = None,
 ) -> Dict[str, Any]:
-    """Run preset (optional) and write JSONL; returns manifest stats."""
+    """Run preset (optional) and write JSONL; returns manifest stats.
+
+    Raises ``RuntimeError`` when a preset is provided and fails.
+    """
     normalized = batch_to_jsonl_records(records)
     if preset is not None:
         stage_result = preset.run(normalized)
-        if stage_result.success and stage_result.processed_data is not None:
+        if not stage_result.success:
+            detail = getattr(stage_result, "error", None) or getattr(
+                stage_result, "errors", None
+            )
+            raise RuntimeError(f"cyrex AGI export preset failed: {detail}")
+        if stage_result.processed_data is not None:
             payload = stage_result.processed_data.data
             if isinstance(payload, list):
                 normalized = payload
