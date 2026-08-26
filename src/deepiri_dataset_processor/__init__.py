@@ -12,7 +12,7 @@ Core modules:
     - manifest: DatasetManifest generation
 """
 
-__version__ = "0.3.0"
+__version__ = "0.3.3"
 
 from deepiri_dataset_processor.cleaning.text_cleaner import (
     TextCleaner,
