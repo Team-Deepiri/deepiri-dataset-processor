@@ -43,11 +43,18 @@ class DatasetVersionManager:
     def __init__(
         self,
         db_url: str,
-        storage_backend: str = "s3",
+        storage_backend: str = "local",
         storage_config: Optional[Dict[str, Any]] = None,
     ):
         _check_sqlalchemy()
         _check_pydantic()
+
+        if storage_backend == "s3":
+            raise NotImplementedError(
+                "storage_backend='s3' is not implemented yet; only 'local' is "
+                "supported. Pass storage_backend='local' explicitly, or contribute "
+                "an S3 backend."
+            )
 
         connect_args = {}
         if db_url.startswith("sqlite"):

@@ -2,6 +2,8 @@
 
 import pytest
 
+from deepiri_dataset_processor.quality.checker import IMPLEMENTED_DIMENSIONS
+
 try:
     import numpy as np
     import pandas as pd
@@ -161,3 +163,24 @@ class TestQualityChecker:
         data = [{"text": "hello", "label": None}]
         report = checker.check_quality(data)
         assert isinstance(report.overall_score, float)
+
+
+class TestDimensionCoverageHonesty:
+    def test_summary_declares_evaluated_and_not_evaluated(self, checker, sample_data):
+        report = checker.check_quality(sample_data, dataset_id="t")
+        evaluated = set(report.summary["dimensions_evaluated"])
+        assert evaluated <= set(IMPLEMENTED_DIMENSIONS)
+        assert set(report.summary["dimensions_not_evaluated"]) == (
+            set(IMPLEMENTED_DIMENSIONS) - evaluated
+        )
+
+    def test_scores_and_summary_agree(self, checker, sample_data):
+        report = checker.check_quality(sample_data, dataset_id="t")
+        assert set(report.dimension_scores) == set(
+            report.summary["dimensions_evaluated"]
+        )
+
+    def test_recommendation_flags_dims_without_applicable_checks(self, checker, sample_data):
+        report = checker.check_quality(sample_data, dataset_id="t")
+        if report.summary["dimensions_not_evaluated"]:
+            assert any("No applicable checks" in r for r in report.recommendations)
